@@ -26,11 +26,11 @@ void setup()
     delay(2000);
     display.setRotation(1);
     display.clearDisplay();
-    display.setTextSize(2);
+    display.setTextSize(1.2);
     display.setTextColor(SH110X_WHITE);
     display.setCursor(0, 0);
     display.setTextWrap(true);
-    display.println("kylejs loves Parker and Sabrina");
+    display.println("Is this still working?");
     display.display();
   }
 }
