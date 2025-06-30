@@ -4,6 +4,52 @@
 #include "i2cScanner.h"
 #include <Adafruit_seesaw.h>
 
+#define ENCODER1_A 0  // Channel A
+#define ENCODER1_B 20 // Channel B
+volatile long encoder1_count = 0;
+volatile bool encoder1_a_last = HIGH;
+volatile unsigned long encoder1_last_time = 0;
+const unsigned long DEBOUNCE_TIME = 5000; // 50ms debounce
+// Interrupt service routines
+void IRAM_ATTR encoder1_ISR()
+{
+  unsigned long current_time = micros();
+
+  // Debounce check
+  // if (current_time - encoder1_last_time < DEBOUNCE_TIME)
+  // {
+  // return;
+  // }
+  encoder1_last_time = current_time;
+
+  bool a_state = digitalRead(ENCODER1_A);
+  bool b_state = digitalRead(ENCODER1_B);
+
+  // Check if A changed from HIGH to LOW (falling edge)
+  if (encoder1_a_last == HIGH && a_state == LOW)
+  {
+    // Check B state to determine direction
+    if (b_state == HIGH)
+    {
+      encoder1_count++; // Clockwise
+    }
+    else
+    {
+      encoder1_count--; // Counter-clockwise
+    }
+  }
+  encoder1_a_last = a_state;
+}
+
+void configureEncoder()
+{
+  pinMode(ENCODER1_A, INPUT_PULLUP);
+  pinMode(ENCODER1_B, INPUT_PULLUP);
+  attachInterrupt(ENCODER1_A, encoder1_ISR, CHANGE);
+  attachInterrupt(ENCODER1_B, encoder1_ISR, CHANGE);
+  Serial.println("Encoders initialized. Start turning!");
+}
+
 Adafruit_seesaw ss;
 Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
 int32_t encoder_position;
@@ -20,6 +66,8 @@ void setup()
   Serial.println("\nI2C Scanner");
 
   initI2C();
+
+  configureEncoder();
 
   if (!ss.begin(SEESAW_ADDR))
   {
@@ -78,6 +126,11 @@ void loop()
     Serial.println("Button pressed!");
   }
 
+  // Store current counts (disable interrupts briefly for atomic read)
+  noInterrupts();
+  long enc1 = encoder1_count;
+  interrupts();
+
   int32_t new_position = ss.getEncoderPosition();
   // did we move arounde?
   if (encoder_position != new_position)
@@ -88,7 +141,9 @@ void loop()
     display.setCursor(0, 0); // reset cursor position
     display.print("Encoder Position: ");
     display.println(new_position); // print the new position
-    display.display();             // update the display
+    display.print("Encoder 2: ");
+    display.println(enc1); // print the first encoder count
+    display.display();     // update the display
   }
 
   // scanI2CDevices();
