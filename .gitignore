@@ -55,6 +55,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Configuration files with credentials
+src/config.h
+
 # Certificate files
 *.pem
 *.key

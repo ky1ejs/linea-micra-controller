@@ -4,12 +4,17 @@
 #include "i2cScanner.h"
 #include <Adafruit_seesaw.h>
 #include "RotaryEncoder.h"
+#include "HomeAssistantClient.h"
+#include "WiFiManager.h"
+#include "config.h"
 
 Adafruit_seesaw ss;
 Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
 int32_t encoder_position;
 
-RotaryEncoder<0> encoder1(0, 20); // Replace with your actual pin numbers
+RotaryEncoder<0> encoder1(0, 20);
+HomeAssistantClient haClient(HA_HOST, HA_PORT, HA_TOKEN);
+WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD, WIFI_TIMEOUT);
 
 #define SEESAW_ADDR 0x36
 #define SS_SWITCH 24
@@ -75,10 +80,30 @@ void setup()
     display.println("Is this still working?");
     display.display();
   }
+
+  // Initialize WiFi
+  if (!wifiManager.connect())
+  {
+    Serial.println("Failed to connect to WiFi");
+    while (1)
+      delay(10);
+  }
+  Serial.printf("WiFi connected with IP: %s", WiFi.localIP().toString().c_str());
+  // Initialize Home Assistant client
+  if (!haClient.connect())
+  {
+    Serial.println("Failed to connect to Home Assistant");
+    while (1)
+      delay(10);
+  }
+  Serial.println("Home Assistant client initialized");
 }
 
 void loop()
 {
+  wifiManager.loop(); // Handle WiFi events
+  haClient.loop();    // Handle Home Assistant events
+
   if (!ss.digitalRead(SS_SWITCH))
   {
     Serial.println("Button pressed!");
