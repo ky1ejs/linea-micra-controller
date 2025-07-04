@@ -20,6 +20,23 @@ WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD, WIFI_TIMEOUT);
 #define SS_SWITCH 24
 #define DISPLAY_ADDR 0x3C
 
+void drawWiFiStrength(Adafruit_SH1107 &display, int x, int y, int strength)
+{
+  // Draw 4 bars of increasing height
+  for (int i = 0; i < 4; i++)
+  {
+    int barHeight = (i + 1) * 2;
+    if (strength > i)
+    {
+      display.fillRect(x + i * 3, y - barHeight, 2, barHeight, SH110X_WHITE);
+    }
+    else
+    {
+      display.drawRect(x + i * 3, y - barHeight, 2, barHeight, SH110X_WHITE);
+    }
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -69,19 +86,17 @@ void setup()
   else
   {
     Serial.println("Display initialized successfully");
-    display.display();
-    delay(2000);
-    display.setRotation(1);
-    display.clearDisplay();
-    display.setTextSize(1.2);
-    display.setTextColor(SH110X_WHITE);
-    display.setCursor(0, 0);
-    display.setTextWrap(true);
-    display.println("Is this still working?");
-    display.display();
   }
 
   // Initialize WiFi
+  display.setRotation(1);
+  display.clearDisplay();
+  display.setTextSize(1.2);
+  display.setTextColor(SH110X_WHITE);
+  display.setCursor(0, 0);
+  display.setTextWrap(true);
+  display.println("Connecting to WiFi...");
+  display.display();
   if (!wifiManager.connect())
   {
     Serial.println("Failed to connect to WiFi");
@@ -89,7 +104,13 @@ void setup()
       delay(10);
   }
   Serial.printf("WiFi connected with IP: %s", WiFi.localIP().toString().c_str());
-  // Initialize Home Assistant client
+  display.clearDisplay();
+  display.println("Connected to WiFi");
+  display.println(WiFi.localIP().toString());
+  display.println("Starting HA client...");
+  display.display();
+  delay(1000); // Give time for display to update
+
   if (!haClient.connect())
   {
     Serial.println("Failed to connect to Home Assistant");
@@ -97,6 +118,11 @@ void setup()
       delay(10);
   }
   Serial.println("Home Assistant client initialized");
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Connected to Home Assistant");
+  display.display();
+  delay(1000); // Give time for display to update
 }
 
 void loop()
@@ -122,7 +148,15 @@ void loop()
   display.println(new_position); // print the new position
   display.print("Encoder 2: ");
   display.println(enc1); // print the first encoder count
-  display.display();     // update the display
+
+  // Draw WiFi signal strength
+  int wifiStrength = WiFi.RSSI() / -20; // Convert RSSI to WiFi strength (0-4)
+
+  drawWiFiStrength(display, 0, 64, wifiStrength);
+  // display.setCursor(0, 56);
+  // display.print("WiFi Strength: ");
+  // display.println(wifiStrength);
+  display.display(); // update the display
 
   // scanI2CDevices();
   delay(100); // wait 100 milliseconds for next scan
