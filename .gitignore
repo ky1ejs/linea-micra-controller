@@ -71,3 +71,5 @@ src/config.h
 # Static analysis results
 cppcheck-results.txt
 cppcheck-full-results.txt
+cppcheck-output.txt
+cppcheck-*.txt

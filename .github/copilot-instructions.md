@@ -40,6 +40,13 @@ This comprehensive guide covers:
 3. Test builds after modifications
 4. Use VS Code with recommended extensions for best experience
 5. Reference full guidelines for detailed procedures
+6. **Log development work**: Always create detailed build logs in `docs/copilot/build_logs/` for context preservation
+
+### Development Logging
+- Create markdown files in `docs/copilot/build_logs/` for each major development session
+- Include implementation details, architecture decisions, and context
+- Use these logs as context reminders for future development work
+- Name files descriptively (e.g., `cloud_api_implementation_context.md`)
 
 ## Quick Reference for AI Assistants
 
