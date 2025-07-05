@@ -6,6 +6,8 @@
 
 typedef std::function<void(bool)> WiFiConnectionCallback;
 
+enum class WiFiConnectionState { Disconnected, Connecting, Connected, Reconnecting };
+
 class WiFiManager {
 private:
   String ssid;
@@ -14,6 +16,7 @@ private:
   unsigned long last_connection_attempt;
   unsigned long connection_timeout;
   WiFiConnectionCallback connection_callback;
+  WiFiConnectionState current_state;
 
   void handleConnectionEvent();
 
@@ -26,6 +29,8 @@ public:
   bool isConnected() const;
   String getLocalIP() const;
   int getSignalStrength() const;
+  WiFiConnectionState getConnectionState() const;
+  String getConnectionStatusText() const;
 
   void setConnectionCallback(WiFiConnectionCallback callback);
   void reconnect();
