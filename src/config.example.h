@@ -13,9 +13,9 @@
 #define HA_TOKEN "your_long_lived_access_token_here"  // Generate from HA Profile > Security
 
 // LaMarzocco Cloud Configuration (optional - for direct API access)
-#define LM_USERNAME "your_lamarzocco_username"       // Your LaMarzocco app username (email)
-#define LM_PASSWORD "your_lamarzocco_password"       // Your LaMarzocco app password
-#define LM_SERIAL_NUMBER "your_machine_serial"       // Your machine's serial number
+#define LM_USERNAME "your_lamarzocco_username"  // Your LaMarzocco app username (email)
+#define LM_PASSWORD "your_lamarzocco_password"  // Your LaMarzocco app password
+#define LM_SERIAL_NUMBER "your_machine_serial"  // Your machine's serial number
 
 // La Marzocco Linea Micra
 #define LINEA_MICRA_ENTITY_ID "switch.kyles_linea_micra"  // Entity

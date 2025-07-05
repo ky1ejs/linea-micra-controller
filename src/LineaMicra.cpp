@@ -143,7 +143,7 @@ bool LineaMicra::setPreBrewMode(bool enabled) {
     return false;
   }
 
-  PreExtractionMode mode = enabled ? PreExtractionMode::PREBREWING : PreExtractionMode::DISABLED;
+  PreExtractionMode mode = enabled ? PreExtractionMode::PREBREWING : PreExtractionMode::NONE;
   bool success = cloudClient->setPreExtractionMode(mode);
   if (success) {
     _preBrewIsOn = enabled;
@@ -189,7 +189,7 @@ void LineaMicra::updateStateFromCloud() {
   if (status.isValid) {
     _isOn = status.isOn;
     _boilerTemperature = status.boilerTemperature;
-    _preBrewIsOn = (status.preBrewMode != PreExtractionMode::DISABLED);
+    _preBrewIsOn = (status.preBrewMode != PreExtractionMode::NONE);
     _preBrewTime = status.preBrewTime;
     _preBrewWait = status.preBrewWait;
 

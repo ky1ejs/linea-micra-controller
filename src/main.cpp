@@ -137,25 +137,26 @@ void setup() {
   display.println("Connected to Home Assistant");
   display.display();
   delay(1000);  // Give time for display to update
+#endif
 }
 
 void loop() {
   display.clearDisplay();
   display.setCursor(0, 0);
 
-  wifiManager.loop(); // Handle WiFi events
+  wifiManager.loop();  // Handle WiFi events
 
 #if USE_CLOUD_API
   // For cloud API, we don't need to poll continuously like WebSocket
   static unsigned long lastCloudRefresh = 0;
-  if (millis() - lastCloudRefresh > 5000) { // Refresh every 5 seconds
+  if (millis() - lastCloudRefresh > 5000) {  // Refresh every 5 seconds
     lastCloudRefresh = millis();
     if (lineaMicra) {
       lineaMicra->refreshFromCloud();
     }
   }
 #else
-  haClient.loop();    // Handle Home Assistant events
+  haClient.loop();  // Handle Home Assistant events
 #endif
 
   if (!ss.digitalRead(SS_SWITCH)) {
@@ -164,18 +165,14 @@ void loop() {
 
   // Initialize LineaMicra if not already done
 #if USE_CLOUD_API
-  if (cloudClient.isAuthenticated())
-  {
-    if (lineaMicra == nullptr)
-    {
+  if (cloudClient.isAuthenticated()) {
+    if (lineaMicra == nullptr) {
       lineaMicra = new LineaMicra(&cloudClient);
       Serial.println("Linea Micra initialized with Cloud API");
     }
 #else
-  if (haClient.isConnected())
-  {
-    if (lineaMicra == nullptr)
-    {
+  if (haClient.isConnected()) {
+    if (lineaMicra == nullptr) {
       lineaMicra = new LineaMicra(&haClient);
       Serial.println("Linea Micra initialized with Home Assistant");
     }
@@ -203,7 +200,7 @@ void loop() {
   int wifiStrength = WiFi.RSSI() / -20;  // Convert RSSI to WiFi strength (0-4)
 
   drawWiFiStrength(display, 0, 64, wifiStrength);
-  display.display(); // update the display
+  display.display();  // update the display
 
-  delay(100); // wait 100 milliseconds for next scan
+  delay(100);  // wait 100 milliseconds for next scan
 }
