@@ -7,6 +7,9 @@ HomeAssistantClient::HomeAssistantClient(const String& host, int port, const Str
       message_id(1),
       connected(false),
       authenticated(false),
+      last_reconnect_attempt(0),
+      reconnect_interval(5000),  // 5 seconds between reconnect attempts
+      auto_reconnect_enabled(true),
       stateChangeCallbacks(),
       subIdToEntityIdMap() {
   client.onMessage([this](WebsocketsMessage message) { this->onMessageCallback(message); });
@@ -37,6 +40,9 @@ void HomeAssistantClient::disconnect() {
 void HomeAssistantClient::loop() {
   if (connected) {
     client.poll();
+  } else if (auto_reconnect_enabled && (millis() - last_reconnect_attempt) > reconnect_interval) {
+    Serial.println("Attempting to reconnect to Home Assistant...");
+    reconnect();
   }
 }
 
@@ -201,4 +207,67 @@ void HomeAssistantClient::setInputNumber(const String& entity_id, float value) {
   JsonDocument service_data;
   service_data["value"] = value;
   callService("input_number", "set_value", entity_id, service_data.template as<JsonObject>());
+}
+
+void HomeAssistantClient::reconnect() {
+  last_reconnect_attempt = millis();
+
+  if (connected) {
+    disconnect();
+  }
+
+  if (connect()) {
+    Serial.println("HomeAssistant reconnection successful, re-establishing subscriptions...");
+    // Re-establish all subscriptions after successful reconnection
+    resubscribeToAllEvents();
+  } else {
+    Serial.println("HomeAssistant reconnection failed, will retry later");
+  }
+}
+
+void HomeAssistantClient::setAutoReconnect(bool enabled) {
+  auto_reconnect_enabled = enabled;
+  if (enabled) {
+    Serial.println("HomeAssistant auto-reconnect enabled");
+  } else {
+    Serial.println("HomeAssistant auto-reconnect disabled");
+  }
+}
+
+void HomeAssistantClient::resubscribeToAllEvents() {
+  if (!isConnected()) {
+    Serial.println("Cannot resubscribe: not connected to HomeAssistant");
+    return;
+  }
+
+  Serial.println("Re-establishing " + String(stateChangeCallbacks.size()) + " HomeAssistant subscriptions...");
+
+  // Clear the message ID mappings since we'll be creating new subscriptions
+  subIdToEntityIdMap.clear();
+
+  // Re-subscribe to all entities by sending new subscription messages
+  for (auto& subscription : stateChangeCallbacks) {
+    const String& entity_id = subscription.first;
+    StateChangedSubscription& sub = subscription.second;
+
+    // Create new subscription with new message ID
+    int id = nextMessageId();
+    JsonDocument msg;
+    msg["id"] = id;
+    msg["type"] = "subscribe_trigger";
+
+    JsonObject trigger = msg["trigger"].to<JsonObject>();
+    trigger["platform"] = "state";
+    trigger["entity_id"] = entity_id;
+
+    sendMessage(msg);
+
+    // Update the subscription with the new message ID
+    sub.message_id = id;
+    subIdToEntityIdMap[id] = entity_id;
+
+    Serial.println("Re-subscribed to entity: " + entity_id);
+  }
+
+  Serial.println("All HomeAssistant subscriptions re-established");
 }

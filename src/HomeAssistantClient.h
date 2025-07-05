@@ -37,6 +37,9 @@ private:
   int message_id;
   bool connected;
   bool authenticated;
+  unsigned long last_reconnect_attempt;
+  unsigned long reconnect_interval;
+  bool auto_reconnect_enabled;
 
   std::map<String, StateChangedSubscription> stateChangeCallbacks;
   std::map<int, String> subIdToEntityIdMap;
@@ -46,6 +49,7 @@ private:
   void sendMessage(const JsonDocument& doc);
   void handleAuthResult(const JsonDocument& doc);
   void handleSubEvent(const JsonDocument& doc);
+  void resubscribeToAllEvents();
 
 public:
   HomeAssistantClient(const String& host, int port, const String& token);
@@ -54,6 +58,8 @@ public:
   void disconnect();
   void loop();
   bool isConnected() const;
+  void reconnect();
+  void setAutoReconnect(bool enabled);
 
   void subscribeToEvent(const String& entity_id, StateChangeCallback callback);
 

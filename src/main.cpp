@@ -102,6 +102,16 @@ void setup() {
   display.println("Connected to WiFi");
   display.println(WiFi.localIP().toString());
 
+  // Set up WiFi connection callback to handle HA reconnection
+  wifiManager.setConnectionCallback([](bool connected) {
+    if (connected) {
+      Serial.println("WiFi reconnected, attempting to reconnect Home Assistant...");
+      haClient.reconnect();
+    } else {
+      Serial.println("WiFi disconnected, Home Assistant will attempt reconnection when WiFi returns");
+    }
+  });
+
   // Initialize both Home Assistant and Cloud API clients
   display.println("Starting HA client...");
   display.display();
@@ -197,9 +207,22 @@ void loop() {
     display.println("Mode: HA + Cloud");
   } else {
     display.println("Linea Micra not ready");
-    if (!haClient.isConnected()) {
-      display.println("HA not connected");
+
+    // Show WiFi status
+    if (!wifiManager.isConnected()) {
+      display.println("WiFi: " + wifiManager.getConnectionStatusText());
     }
+
+    // Show HA status
+    if (!haClient.isConnected()) {
+      if (wifiManager.isConnected()) {
+        display.println("HA: Reconnecting...");
+      } else {
+        display.println("HA: Waiting for WiFi");
+      }
+    }
+
+    // Show Cloud status
     if (!cloudClient.isAuthenticated()) {
       display.println("Cloud not authenticated");
     }
