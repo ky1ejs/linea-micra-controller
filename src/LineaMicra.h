@@ -4,10 +4,9 @@
 
 #include "HomeAssistantClient.h"
 
-class LineaMicra
-{
+class LineaMicra {
 public:
-  LineaMicra(HomeAssistantClient *client);
+  LineaMicra(HomeAssistantClient* client);
   ~LineaMicra();
 
   bool isOn();
@@ -17,7 +16,7 @@ public:
   bool isPreBrewOn();
 
 private:
-  HomeAssistantClient *haClient;
+  HomeAssistantClient* haClient;
   volatile bool _isOn;
   float _boilerTemperature;
   bool _preBrewIsOn;
@@ -25,4 +24,4 @@ private:
   float _preBrewWait;
 };
 
-#endif // LINEA_MICRA_H
+#endif  // LINEA_MICRA_H
