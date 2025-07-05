@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 #include "HomeAssistantClient.h"
+#include "LaMarzoccoCloudClient.h"
 #include "LineaMicra.h"
 #include "RotaryEncoder.h"
 #include "WiFiManager.h"
@@ -16,8 +17,13 @@ int32_t encoder_position;
 
 RotaryEncoder<0> encoder1(0, 20);
 HomeAssistantClient haClient(HA_HOST, HA_PORT, HA_TOKEN);
+LaMarzoccoCloudClient cloudClient(LM_USERNAME, LM_PASSWORD, LM_SERIAL_NUMBER);
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD, WIFI_TIMEOUT);
 LineaMicra* lineaMicra = nullptr;
+
+// Configuration: Choose which client to use
+// Set to true to use LaMarzocco Cloud API directly, false to use Home Assistant
+#define USE_CLOUD_API false
 
 #define SEESAW_ADDR 0x36
 #define SS_SWITCH 24
@@ -98,6 +104,24 @@ void setup() {
   display.clearDisplay();
   display.println("Connected to WiFi");
   display.println(WiFi.localIP().toString());
+
+#if USE_CLOUD_API
+  display.println("Starting Cloud client...");
+  display.display();
+  delay(1000);
+
+  if (!cloudClient.authenticate()) {
+    Serial.println("Failed to authenticate with LaMarzocco Cloud API");
+    while (1)
+      delay(10);
+  }
+  Serial.println("LaMarzocco Cloud client initialized");
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Connected to LM Cloud");
+  display.display();
+  delay(1000);
+#else
   display.println("Starting HA client...");
   display.display();
   delay(1000);  // Give time for display to update
@@ -119,19 +143,43 @@ void loop() {
   display.clearDisplay();
   display.setCursor(0, 0);
 
-  wifiManager.loop();  // Handle WiFi events
-  haClient.loop();     // Handle Home Assistant events
+  wifiManager.loop(); // Handle WiFi events
+
+#if USE_CLOUD_API
+  // For cloud API, we don't need to poll continuously like WebSocket
+  static unsigned long lastCloudRefresh = 0;
+  if (millis() - lastCloudRefresh > 5000) { // Refresh every 5 seconds
+    lastCloudRefresh = millis();
+    if (lineaMicra) {
+      lineaMicra->refreshFromCloud();
+    }
+  }
+#else
+  haClient.loop();    // Handle Home Assistant events
+#endif
 
   if (!ss.digitalRead(SS_SWITCH)) {
     Serial.println("Button pressed!");
   }
 
-  // Read the encoder position
-  if (haClient.isConnected()) {
-    if (lineaMicra == nullptr) {
-      lineaMicra = new LineaMicra(&haClient);
-      Serial.println("Linea Micra initialized");
+  // Initialize LineaMicra if not already done
+#if USE_CLOUD_API
+  if (cloudClient.isAuthenticated())
+  {
+    if (lineaMicra == nullptr)
+    {
+      lineaMicra = new LineaMicra(&cloudClient);
+      Serial.println("Linea Micra initialized with Cloud API");
     }
+#else
+  if (haClient.isConnected())
+  {
+    if (lineaMicra == nullptr)
+    {
+      lineaMicra = new LineaMicra(&haClient);
+      Serial.println("Linea Micra initialized with Home Assistant");
+    }
+#endif
 
     bool micraIsOn = lineaMicra->isOn();
     display.println("Linea Micra is " + String(micraIsOn ? "ON" : "OFF"));
@@ -139,6 +187,12 @@ void loop() {
     display.println("Prebrew: " + String(lineaMicra->isPreBrewOn() ? "ON" : "OFF"));
     display.println("Prebrew Time: " + String(lineaMicra->getPreBrewTime()) + " s");
     display.println("Prebrew Wait: " + String(lineaMicra->getPreBrewWait()) + " s");
+
+#if USE_CLOUD_API
+    display.println("Mode: Cloud API");
+#else
+    display.println("Mode: Home Assistant");
+#endif
   }
 
   // Store current counts (disable interrupts briefly for atomic read)
@@ -149,11 +203,7 @@ void loop() {
   int wifiStrength = WiFi.RSSI() / -20;  // Convert RSSI to WiFi strength (0-4)
 
   drawWiFiStrength(display, 0, 64, wifiStrength);
-  // display.setCursor(0, 56);
-  // display.print("WiFi Strength: ");
-  // display.println(wifiStrength);
-  display.display();  // update the display
+  display.display(); // update the display
 
-  // scanI2CDevices();
-  delay(100);  // wait 100 milliseconds for next scan
+  delay(100); // wait 100 milliseconds for next scan
 }
