@@ -33,8 +33,6 @@
     "unmatchedSuppression",
     "useStlAlgorithm"
   ],
-  "platformio-ide.useDevelopmentPIOCore": false,
-  "platformio-ide.autoRebuildAutocompleteIndex": true,
   "files.exclude": {
     "**/.pio": true,
     "**/cppcheck-*.txt": true
