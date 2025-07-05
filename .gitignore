@@ -66,3 +66,7 @@ src/config.h
 
 # Formatter backups
 *.backup
+
+# Static analysis results
+cppcheck-results.txt
+cppcheck-full-results.txt
