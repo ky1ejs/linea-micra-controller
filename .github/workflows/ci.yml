@@ -32,11 +32,14 @@ jobs:
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
     
+    - name: Show PlatformIO version
+      run: pio --version
+    
     - name: Create config.h from example
       run: cp src/config.example.h src/config.h
     
     - name: Run code analysis
-      run: pio check --environment esp32-c6-devkitc-1
+      run: pio check --environment esp32-c6-devkitc-1 --fail-on-defect high --verbose
 
   build:
     runs-on: ubuntu-latest
@@ -63,8 +66,11 @@ jobs:
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
     
+    - name: Show PlatformIO version
+      run: pio --version
+    
     - name: Create config.h from example
       run: cp src/config.example.h src/config.h
     
     - name: Build project
-      run: pio run --environment esp32-c6-devkitc-1
+      run: pio run --environment esp32-c6-devkitc-1 --verbose
