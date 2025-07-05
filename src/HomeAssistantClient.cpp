@@ -1,7 +1,7 @@
 #include "HomeAssistantClient.h"
 
 HomeAssistantClient::HomeAssistantClient(const String &host, int port, const String &token)
-    : host(host), port(port), token(token), message_id(1), connected(false), authenticated(false), state_change_callbacks()
+    : host(host), port(port), token(token), message_id(1), connected(false), authenticated(false), stateChangeCallbacks(), subIdToEntityIdMap()
 {
 
     client.onMessage([this](WebsocketsMessage message)
@@ -81,11 +81,11 @@ void HomeAssistantClient::onMessageCallback(WebsocketsMessage message)
     }
     else if (type == "event")
     {
-        handleStateChanged(doc);
+        handleSubEvent(doc);
     }
     else if (type == "result")
     {
-        handleResult(doc);
+        Serial.println("Received result message");
     }
 }
 
@@ -122,65 +122,73 @@ void HomeAssistantClient::handleAuthResult(const JsonDocument &doc)
 {
     authenticated = true;
     Serial.println("Successfully authenticated with Home Assistant");
-
-    // Automatically subscribe to state changes after authentication
-    subscribeToEvents();
 }
 
-void HomeAssistantClient::handleStateChanged(const JsonDocument &doc)
+void HomeAssistantClient::handleSubEvent(const JsonDocument &doc)
 {
-    if (state_callback && doc["event"]["event_type"] == "state_changed")
-    {
-        JsonObjectConst event = doc["event"];
-        JsonObjectConst data = event["data"];
-        JsonObjectConst new_state = data["new_state"];
+    auto data = doc["event"]["variables"]["trigger"]["to_state"];
+    String entity_id = data["entity_id"].as<String>();
+    auto sub = stateChangeCallbacks.find(entity_id);
 
+    Serial.println("Handling state change event for entity: " + entity_id);
+
+    if (sub == stateChangeCallbacks.end())
+    {
+        Serial.println("No subscription found for entity: " + entity_id);
+        return;
+    }
+
+    auto &subEntry = sub->second;
+    for (const auto &callback : subEntry.callbacks)
+    {
         HAEntity entity;
-        entity.entity_id = new_state["entity_id"].as<String>();
-        entity.state = new_state["state"].as<String>();
-
-        if (new_state["attributes"]["friendly_name"])
+        entity.entity_id = entity_id;
+        entity.state = data["state"].as<String>();
+        if (data["attributes"]["friendly_name"])
         {
-            entity.friendly_name = new_state["attributes"]["friendly_name"].as<String>();
+            entity.friendly_name = data["attributes"]["friendly_name"].as<String>();
         }
 
-        entity.last_updated = millis();
-        state_callback(entity);
+        callback(entity);
     }
 }
 
-void HomeAssistantClient::handleResult(const JsonDocument &doc)
+int nextMessageId()
 {
-    bool success = doc["success"];
-    int id = doc["id"];
-
-    if (service_callback)
-    {
-        String message = success ? "Success" : "Failed";
-        if (doc["error"])
-        {
-            message = doc["error"]["message"].as<String>();
-        }
-        service_callback(success, message);
-    }
-
-    Serial.println("Service call " + String(id) + ": " + (success ? "Success" : "Failed"));
+    static int message_id = 1;
+    return message_id++;
 }
 
 void HomeAssistantClient::subscribeToEvent(const String &entity_id, StateChangeCallback callback)
 {
-    state_callback = callback;
+    try
+    {
+        auto subscription = stateChangeCallbacks.at(entity_id);
+        subscription.callbacks.push_back(callback);
+        Serial.println("Subscribed to entity: " + entity_id);
+    }
+    catch (const std::out_of_range &)
+    {
+        // Subscription not found, create a new one
+        int id = nextMessageId();
+        JsonDocument msg;
+        msg["id"] = id;
+        msg["type"] = "subscribe_trigger";
 
-    JsonDocument msg;
-    msg["id"] = message_id++;
-    msg["type"] = "subscribe_events";
-    msg["event_type"] = "state_changed";
+        JsonObject trigger = msg["trigger"].to<JsonObject>();
+        trigger["platform"] = "state";
+        trigger["entity_id"] = entity_id;
 
-    JsonObject target = msg["target"].to<JsonObject>();
-    target["entity_id"] = entity_id;
+        sendMessage(msg);
 
-    sendMessage(msg);
-    Serial.println("Subscribed to state change events for entity: " + entity_id);
+        stateChangeCallbacks[entity_id] = StateChangedSubscription{
+            entity_id,
+            {callback},
+            id // Store the message ID for this subscription
+        };
+        subIdToEntityIdMap[id] = entity_id;
+        Serial.println("Subscribed to state change events for entity: " + entity_id);
+    }
 }
 
 void HomeAssistantClient::callService(const String &domain, const String &service, const String &entity_id, const JsonObject &service_data)

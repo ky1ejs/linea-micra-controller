@@ -7,6 +7,7 @@
 #include "HomeAssistantClient.h"
 #include "WiFiManager.h"
 #include "config.h"
+#include "LineaMicra.h"
 
 Adafruit_seesaw ss;
 Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
@@ -15,6 +16,7 @@ int32_t encoder_position;
 RotaryEncoder<0> encoder1(0, 20);
 HomeAssistantClient haClient(HA_HOST, HA_PORT, HA_TOKEN);
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD, WIFI_TIMEOUT);
+LineaMicra *lineaMicra = nullptr;
 
 #define SEESAW_ADDR 0x36
 #define SS_SWITCH 24
@@ -127,6 +129,9 @@ void setup()
 
 void loop()
 {
+  display.clearDisplay();
+  display.setCursor(0, 0);
+
   wifiManager.loop(); // Handle WiFi events
   haClient.loop();    // Handle Home Assistant events
 
@@ -135,19 +140,26 @@ void loop()
     Serial.println("Button pressed!");
   }
 
+  // Read the encoder position
+  if (haClient.isConnected())
+  {
+    if (lineaMicra == nullptr)
+    {
+      lineaMicra = new LineaMicra(&haClient);
+      Serial.println("Linea Micra initialized");
+    }
+
+    bool micraIsOn = lineaMicra->isOn();
+    display.println("Linea Micra is " + String(micraIsOn ? "ON" : "OFF"));
+    display.println("Temp: " + String(lineaMicra->getBoilerTemperature()) + " C");
+    display.println("Prebrew: " + String(lineaMicra->isPreBrewOn() ? "ON" : "OFF"));
+    display.println("Prebrew Time: " + String(lineaMicra->getPreBrewTime()) + " s");
+    display.println("Prebrew Wait: " + String(lineaMicra->getPreBrewWait()) + " s");
+  }
+
   // Store current counts (disable interrupts briefly for atomic read)
   int32_t enc1 = encoder1.getValue();
   int32_t new_position = ss.getEncoderPosition();
-
-  // did we move around?
-  // Serial.println(new_position); // display new position
-
-  display.clearDisplay();  // clear the display
-  display.setCursor(0, 0); // reset cursor position
-  display.print("Encoder Position: ");
-  display.println(new_position); // print the new position
-  display.print("Encoder 2: ");
-  display.println(enc1); // print the first encoder count
 
   // Draw WiFi signal strength
   int wifiStrength = WiFi.RSSI() / -20; // Convert RSSI to WiFi strength (0-4)

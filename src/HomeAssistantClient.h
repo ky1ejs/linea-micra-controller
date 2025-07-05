@@ -25,8 +25,6 @@ struct StateChangedSubscription
     int message_id; // Unique ID for the subscription
 };
 
-typedef StateChangedSubscription StateChangedSubscriptionArray[10];
-
 struct StateEventSubscriptionRequest
 {
     String entity_id;
@@ -44,13 +42,13 @@ private:
     bool authenticated;
 
     std::map<String, StateChangedSubscription> stateChangeCallbacks;
+    std::map<int, String> subIdToEntityIdMap;
 
     void onMessageCallback(WebsocketsMessage message);
     void onEventCallback(WebsocketsEvent event, String data);
     void sendMessage(const JsonDocument &doc);
     void handleAuthResult(const JsonDocument &doc);
-    void handleStateChanged(const JsonDocument &doc);
-    void handleResult(const JsonDocument &doc);
+    void handleSubEvent(const JsonDocument &doc);
 
 public:
     HomeAssistantClient(const String &host, int port, const String &token);
@@ -62,7 +60,6 @@ public:
 
     void subscribeToEvent(const String &entity_id, StateChangeCallback callback);
 
-    void subscribeToEvents();
     void callService(const String &domain, const String &service, const String &entity_id, const JsonObject &service_data = JsonObject());
 
     // Convenience methods for common actions
