@@ -15,15 +15,12 @@ Adafruit_seesaw ss;
 Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
 int32_t encoder_position;
 
-RotaryEncoder<0> encoder1(0, 20);
 HomeAssistantClient haClient(HA_HOST, HA_PORT, HA_TOKEN);
 LaMarzoccoCloudClient cloudClient(LM_USERNAME, LM_PASSWORD, LM_SERIAL_NUMBER);
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD, WIFI_TIMEOUT);
 LineaMicra* lineaMicra = nullptr;
 
-// Configuration: Choose which client to use
-// Set to true to use LaMarzocco Cloud API directly, false to use Home Assistant
-#define USE_CLOUD_API false
+RotaryEncoder<0> encoder1(0, 20);
 
 #define SEESAW_ADDR 0x36
 #define SS_SWITCH 24
@@ -105,7 +102,20 @@ void setup() {
   display.println("Connected to WiFi");
   display.println(WiFi.localIP().toString());
 
-#if USE_CLOUD_API
+  // Initialize both Home Assistant and Cloud API clients
+  display.println("Starting HA client...");
+  display.display();
+  delay(1000);
+
+  if (!haClient.connect()) {
+    Serial.println("Failed to connect to Home Assistant");
+    while (1)
+      delay(10);
+  }
+  Serial.println("Home Assistant client initialized");
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
   display.println("Starting Cloud client...");
   display.display();
   delay(1000);
@@ -116,28 +126,13 @@ void setup() {
       delay(10);
   }
   Serial.println("LaMarzocco Cloud client initialized");
+
   display.clearDisplay();
   display.setCursor(0, 0);
-  display.println("Connected to LM Cloud");
+  display.println("Connected to both");
+  display.println("HA + Cloud API");
   display.display();
   delay(1000);
-#else
-  display.println("Starting HA client...");
-  display.display();
-  delay(1000);  // Give time for display to update
-
-  if (!haClient.connect()) {
-    Serial.println("Failed to connect to Home Assistant");
-    while (1)
-      delay(10);
-  }
-  Serial.println("Home Assistant client initialized");
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println("Connected to Home Assistant");
-  display.display();
-  delay(1000);  // Give time for display to update
-#endif
 }
 
 void loop() {
@@ -145,51 +140,61 @@ void loop() {
   display.setCursor(0, 0);
 
   wifiManager.loop();  // Handle WiFi events
-
-#if USE_CLOUD_API
-  // For cloud API, we don't need to poll continuously like WebSocket
-  static unsigned long lastCloudRefresh = 0;
-  if (millis() - lastCloudRefresh > 5000) {  // Refresh every 5 seconds
-    lastCloudRefresh = millis();
-    if (lineaMicra) {
-      lineaMicra->refreshFromCloud();
-    }
-  }
-#else
-  haClient.loop();  // Handle Home Assistant events
-#endif
+  haClient.loop();     // Handle Home Assistant events
 
   if (!ss.digitalRead(SS_SWITCH)) {
     Serial.println("Button pressed!");
   }
 
-  // Initialize LineaMicra if not already done
-#if USE_CLOUD_API
-  if (cloudClient.isAuthenticated()) {
+  // Initialize LineaMicra if not already done (both clients must be ready)
+  if (haClient.isConnected() && cloudClient.isAuthenticated()) {
     if (lineaMicra == nullptr) {
-      lineaMicra = new LineaMicra(&cloudClient);
-      Serial.println("Linea Micra initialized with Cloud API");
+      lineaMicra = new LineaMicra(&haClient, &cloudClient);
+      lineaMicra->fetchInitialState();  // Fetch initial state from cloud
+      Serial.println("Linea Micra initialized with dual-client mode");
     }
-#else
-  if (haClient.isConnected()) {
-    if (lineaMicra == nullptr) {
-      lineaMicra = new LineaMicra(&haClient);
-      Serial.println("Linea Micra initialized with Home Assistant");
-    }
-#endif
+
+    // Call LineaMicra's loop to handle debouncing
+    lineaMicra->loop();
 
     bool micraIsOn = lineaMicra->isOn();
-    display.println("Linea Micra is " + String(micraIsOn ? "ON" : "OFF"));
-    display.println("Temp: " + String(lineaMicra->getBoilerTemperature()) + " C");
-    display.println("Prebrew: " + String(lineaMicra->isPreBrewOn() ? "ON" : "OFF"));
-    display.println("Prebrew Time: " + String(lineaMicra->getPreBrewTime()) + " s");
-    display.println("Prebrew Wait: " + String(lineaMicra->getPreBrewWait()) + " s");
+    float boilerTemp = lineaMicra->getBoilerTemperature();
+    bool preBrewOn = lineaMicra->isPreBrewOn();
+    float preBrewTime = lineaMicra->getPreBrewTime();
+    float preBrewWait = lineaMicra->getPreBrewWait();
 
-#if USE_CLOUD_API
-    display.println("Mode: Cloud API");
-#else
-    display.println("Mode: Home Assistant");
-#endif
+    // Display values with pending state indication
+    display.print("Linea Micra is ");
+    if (lineaMicra->isPowerPending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(micraIsOn ? "ON" : "OFF");
+
+    display.print("Temp: ");
+    if (lineaMicra->isBoilerTemperaturePending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(String(boilerTemp) + " C");
+
+    display.print("Prebrew: ");
+    if (lineaMicra->isPreBrewModePending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(preBrewOn ? "ON" : "OFF");
+
+    display.print("PB Time: ");
+    if (lineaMicra->isPreBrewTimesPending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(String(preBrewTime) + " s");
+
+    display.print("PB Wait: ");
+    if (lineaMicra->isPreBrewTimesPending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(String(preBrewWait) + " s");
+
+    display.println("Mode: HA + Cloud");
   }
 
   // Store current counts (disable interrupts briefly for atomic read)
