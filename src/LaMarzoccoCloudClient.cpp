@@ -43,14 +43,25 @@ bool LaMarzoccoCloudClient::signIn() {
     return false;
   }
 
-  accessToken.accessToken = responseDoc["access_token"].as<String>();
-  accessToken.refreshToken = responseDoc["refresh_token"].as<String>();
+  Serial.println("Authentication response received: " + response.body);
+
+  accessToken.accessToken = responseDoc["accessToken"].as<String>();
+  accessToken.refreshToken = responseDoc["refreshToken"].as<String>();
 
   // Convert expires_in (seconds) to absolute timestamp (milliseconds)
-  int expiresIn = responseDoc["expires_in"].as<int>();
-  accessToken.expiresAt = millis() + (expiresIn * 1000);
+  // API doesn't return an expires at timestamp, so we calculate it
+  if (!responseDoc.containsKey("expiresIn")) {
+    // default to one hour from now
+    accessToken.expiresAt = millis() + (3600 * 1000);
+  } else {
+    int expiresIn = responseDoc["expiresIn"].as<int>();
+    accessToken.expiresAt = millis() + (expiresIn * 1000);
+  }
 
   Serial.println("Successfully authenticated with LaMarzocco Cloud API");
+  Serial.println("Access expires at: " + String(accessToken.expiresAt));
+  Serial.println("Is connected: " + String(isAuthenticated() ? "Yes" : "No"));
+  Serial.println("Access token: " + accessToken.accessToken);
   return true;
 }
 
@@ -125,21 +136,24 @@ MachineStatus LaMarzoccoCloudClient::getMachineStatus() {
     return status;
   }
 
+  Serial.println("Dashboard response received: " + response.body);
+
   // Parse the dashboard response
   JsonArray widgets = responseDoc["widgets"];
   for (JsonObject widget : widgets) {
-    String widgetType = widget["widgetType"].as<String>();
+    String widgetType = widget["code"].as<String>();
 
     if (widgetType == "CMMachineStatus") {
-      String machineState = widget["state"].as<String>();
+      String machineState = widget["output"]["status"].as<String>();
       status.isOn = (machineState == "PoweredOn" || machineState == "Brewing");
     } else if (widgetType == "CMCoffeeBoiler") {
-      status.boilerTemperature = widget["targetTemperature"].as<float>();
+      status.boilerTemperature = widget["output"]["targetTemperature"].as<float>();
     } else if (widgetType == "CMPreBrewing") {
-      String mode = widget["mode"].as<String>();
+      String mode = widget["output"]["mode"].as<String>();
       status.preBrewMode = stringToPreExtractionMode(mode);
-      status.preBrewTime = widget["preBrewingTime"].as<float>();
-      status.preBrewWait = widget["preBrewingPauseTime"].as<float>();
+      JsonObject times = widget["output"]["times"]["PreBrewing"][0]["seconds"];
+      status.preBrewTime = times["In"].as<float>();
+      status.preBrewWait = times["Out"].as<float>();
     }
   }
 

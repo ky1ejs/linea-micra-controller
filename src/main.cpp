@@ -195,6 +195,14 @@ void loop() {
     display.println(String(preBrewWait) + " s");
 
     display.println("Mode: HA + Cloud");
+  } else {
+    display.println("Linea Micra not ready");
+    if (!haClient.isConnected()) {
+      display.println("HA not connected");
+    }
+    if (!cloudClient.isAuthenticated()) {
+      display.println("Cloud not authenticated");
+    }
   }
 
   // Store current counts (disable interrupts briefly for atomic read)
