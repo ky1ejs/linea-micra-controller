@@ -7,9 +7,37 @@ on:
     branches: [ main ]
 
 jobs:
+  format-check:
+    runs-on: ubuntu-latest
+    name: Code Formatting Check
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install clang-format
+      run: sudo apt-get update && sudo apt-get install -y clang-format
+    
+    - name: Create config.h from example
+      run: cp src/config.example.h src/config.h
+    
+    - name: Check code formatting
+      run: |
+        # Run clang-format on all source files and check if any files would be changed
+        find src include -name "*.cpp" -o -name "*.h" -o -name "*.hpp" -o -name "*.c" 2>/dev/null | while read file; do
+          if [ -f "$file" ]; then
+            if ! clang-format --dry-run --Werror "$file" > /dev/null 2>&1; then
+              echo "❌ $file is not properly formatted"
+              echo "To fix formatting issues, run: ./scripts/fix-lint.sh"
+              exit 1
+            else
+              echo "✅ $file is properly formatted"
+            fi
+          fi
+        done
+
   lint:
     runs-on: ubuntu-latest
-    name: Code Linting
+    name: Static Code Analysis
     
     steps:
     - uses: actions/checkout@v4
@@ -38,7 +66,7 @@ jobs:
     - name: Create config.h from example
       run: cp src/config.example.h src/config.h
     
-    - name: Run code analysis
+    - name: Run static code analysis
       run: pio check --environment esp32-c6-devkitc-1 --fail-on-defect high --verbose
 
   build:

@@ -9,13 +9,12 @@
 #include <Arduino.h>
 
 template <int ID>
-class RotaryEncoder
-{
+class RotaryEncoder {
 public:
   RotaryEncoder(int pin_a, int pin_b, int pin_sw = -1, int counts_per_detent = 4);
   bool begin();
   long getValue();
-  static RotaryEncoder<ID> *instance;
+  static RotaryEncoder<ID>* instance;
   static void handleEncoderISR();
 
 private:
@@ -32,4 +31,4 @@ private:
 
 #include "RotaryEncoder.tpp"
 
-#endif // ROTARY_ENCODER_H
+#endif  // ROTARY_ENCODER_H
