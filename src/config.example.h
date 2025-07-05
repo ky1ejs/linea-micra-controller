@@ -12,6 +12,11 @@
 #define HA_PORT 8123                                  // Home Assistant WebSocket port (usually 8123)
 #define HA_TOKEN "your_long_lived_access_token_here"  // Generate from HA Profile > Security
 
+// LaMarzocco Cloud Configuration (optional - for direct API access)
+#define LM_USERNAME "your_lamarzocco_username"  // Your LaMarzocco app username (email)
+#define LM_PASSWORD "your_lamarzocco_password"  // Your LaMarzocco app password
+#define LM_SERIAL_NUMBER "your_machine_serial"  // Your machine's serial number
+
 // La Marzocco Linea Micra
 #define LINEA_MICRA_ENTITY_ID "switch.kyles_linea_micra"  // Entity
 #define LINEA_MICRA_BOILER_TEMP_ENTITY_ID "number.kyles_linea_micra_coffee_target_temperature"

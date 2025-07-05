@@ -40,6 +40,14 @@ This comprehensive guide covers:
 3. Test builds after modifications
 4. Use VS Code with recommended extensions for best experience
 5. Reference full guidelines for detailed procedures
+6. **Log development work**: Always create detailed build logs in `docs/copilot/build_logs/` with numeric prefixes (0001_, 0002_, etc.) for context preservation
+
+### Development Logging
+- Create markdown files in `docs/copilot/build_logs/` for each major development session
+- Include implementation details, architecture decisions, and context
+- Use these logs as context reminders for future development work
+- **Index files with numeric prefixes**: Start with `0001_`, `0002_`, etc. (e.g., `0001_cloud_api_implementation_context.md`)
+- Name files descriptively after the numeric prefix
 
 ## Quick Reference for AI Assistants
 

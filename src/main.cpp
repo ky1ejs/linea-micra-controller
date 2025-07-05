@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 #include "HomeAssistantClient.h"
+#include "LaMarzoccoCloudClient.h"
 #include "LineaMicra.h"
 #include "RotaryEncoder.h"
 #include "WiFiManager.h"
@@ -14,10 +15,12 @@ Adafruit_seesaw ss;
 Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
 int32_t encoder_position;
 
-RotaryEncoder<0> encoder1(0, 20);
 HomeAssistantClient haClient(HA_HOST, HA_PORT, HA_TOKEN);
+LaMarzoccoCloudClient cloudClient(LM_USERNAME, LM_PASSWORD, LM_SERIAL_NUMBER);
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD, WIFI_TIMEOUT);
 LineaMicra* lineaMicra = nullptr;
+
+RotaryEncoder<0> encoder1(0, 20);
 
 #define SEESAW_ADDR 0x36
 #define SS_SWITCH 24
@@ -98,9 +101,11 @@ void setup() {
   display.clearDisplay();
   display.println("Connected to WiFi");
   display.println(WiFi.localIP().toString());
+
+  // Initialize both Home Assistant and Cloud API clients
   display.println("Starting HA client...");
   display.display();
-  delay(1000);  // Give time for display to update
+  delay(1000);
 
   if (!haClient.connect()) {
     Serial.println("Failed to connect to Home Assistant");
@@ -108,11 +113,26 @@ void setup() {
       delay(10);
   }
   Serial.println("Home Assistant client initialized");
+
   display.clearDisplay();
   display.setCursor(0, 0);
-  display.println("Connected to Home Assistant");
+  display.println("Starting Cloud client...");
   display.display();
-  delay(1000);  // Give time for display to update
+  delay(1000);
+
+  if (!cloudClient.authenticate()) {
+    Serial.println("Failed to authenticate with LaMarzocco Cloud API");
+    while (1)
+      delay(10);
+  }
+  Serial.println("LaMarzocco Cloud client initialized");
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Connected to both");
+  display.println("HA + Cloud API");
+  display.display();
+  delay(1000);
 }
 
 void loop() {
@@ -126,19 +146,63 @@ void loop() {
     Serial.println("Button pressed!");
   }
 
-  // Read the encoder position
-  if (haClient.isConnected()) {
+  // Initialize LineaMicra if not already done (both clients must be ready)
+  if (haClient.isConnected() && cloudClient.isAuthenticated()) {
     if (lineaMicra == nullptr) {
-      lineaMicra = new LineaMicra(&haClient);
-      Serial.println("Linea Micra initialized");
+      lineaMicra = new LineaMicra(&haClient, &cloudClient);
+      lineaMicra->fetchInitialState();  // Fetch initial state from cloud
+      Serial.println("Linea Micra initialized with dual-client mode");
     }
 
+    // Call LineaMicra's loop to handle debouncing
+    lineaMicra->loop();
+
     bool micraIsOn = lineaMicra->isOn();
-    display.println("Linea Micra is " + String(micraIsOn ? "ON" : "OFF"));
-    display.println("Temp: " + String(lineaMicra->getBoilerTemperature()) + " C");
-    display.println("Prebrew: " + String(lineaMicra->isPreBrewOn() ? "ON" : "OFF"));
-    display.println("Prebrew Time: " + String(lineaMicra->getPreBrewTime()) + " s");
-    display.println("Prebrew Wait: " + String(lineaMicra->getPreBrewWait()) + " s");
+    float boilerTemp = lineaMicra->getBoilerTemperature();
+    bool preBrewOn = lineaMicra->isPreBrewOn();
+    float preBrewTime = lineaMicra->getPreBrewTime();
+    float preBrewWait = lineaMicra->getPreBrewWait();
+
+    // Display values with pending state indication
+    display.print("Linea Micra is ");
+    if (lineaMicra->isPowerPending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(micraIsOn ? "ON" : "OFF");
+
+    display.print("Temp: ");
+    if (lineaMicra->isBoilerTemperaturePending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(String(boilerTemp) + " C");
+
+    display.print("Prebrew: ");
+    if (lineaMicra->isPreBrewModePending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(preBrewOn ? "ON" : "OFF");
+
+    display.print("PB Time: ");
+    if (lineaMicra->isPreBrewTimesPending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(String(preBrewTime) + " s");
+
+    display.print("PB Wait: ");
+    if (lineaMicra->isPreBrewTimesPending()) {
+      display.print("*");  // Asterisk indicates pending
+    }
+    display.println(String(preBrewWait) + " s");
+
+    display.println("Mode: HA + Cloud");
+  } else {
+    display.println("Linea Micra not ready");
+    if (!haClient.isConnected()) {
+      display.println("HA not connected");
+    }
+    if (!cloudClient.isAuthenticated()) {
+      display.println("Cloud not authenticated");
+    }
   }
 
   // Store current counts (disable interrupts briefly for atomic read)
@@ -149,11 +213,7 @@ void loop() {
   int wifiStrength = WiFi.RSSI() / -20;  // Convert RSSI to WiFi strength (0-4)
 
   drawWiFiStrength(display, 0, 64, wifiStrength);
-  // display.setCursor(0, 56);
-  // display.print("WiFi Strength: ");
-  // display.println(wifiStrength);
   display.display();  // update the display
 
-  // scanI2CDevices();
   delay(100);  // wait 100 milliseconds for next scan
 }
