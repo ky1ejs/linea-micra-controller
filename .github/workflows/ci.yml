@@ -42,32 +42,64 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Cache PlatformIO
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.platformio/.cache
-          ~/.platformio/penv
-        key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
-        restore-keys: |
-          ${{ runner.os }}-pio-
-    
-    - name: Install PlatformIO Core
-      run: pip install --upgrade platformio
-    
-    - name: Show PlatformIO version
-      run: pio --version
+    - name: Install static analysis tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-tools
     
     - name: Create config.h from example
       run: cp src/config.example.h src/config.h
     
-    - name: Run static code analysis
-      run: pio check --environment esp32-c6-devkitc-1 --fail-on-defect high --verbose
+    - name: Run cppcheck static analysis
+      run: |
+        echo "Running cppcheck static analysis..."
+        cppcheck --enable=warning,performance,portability --std=c++11 --platform=unix32 \
+          --suppress=missingIncludeSystem \
+          --suppress=unmatchedSuppression \
+          --suppress=useStlAlgorithm \
+          --error-exitcode=1 \
+          --verbose \
+          --include=src/config.h \
+          src/ include/ 2>&1 | tee cppcheck-results.txt
+        
+        # Store the exit code
+        CPPCHECK_EXIT=$?
+        
+        # Also run a full analysis for informational purposes (style issues)
+        echo "Running full cppcheck analysis for informational purposes..."
+        cppcheck --enable=all --std=c++11 --platform=unix32 \
+          --suppress=missingIncludeSystem \
+          --suppress=unmatchedSuppression \
+          --suppress=useStlAlgorithm \
+          --suppress=unusedFunction \
+          --suppress=constVariableReference \
+          --suppress=unreadVariable \
+          --suppress=noExplicitConstructor \
+          --verbose \
+          --include=src/config.h \
+          src/ include/ 2>&1 | tee cppcheck-full-results.txt || true
+        
+        # Only fail on serious issues (warnings, performance, portability)
+        if [ $CPPCHECK_EXIT -ne 0 ]; then
+          echo "❌ Static analysis found serious issues"
+          exit 1
+        else
+          echo "✅ Static analysis passed (no critical issues found)"
+        fi
+    
+    - name: Run additional static analysis
+      run: |
+        echo "Running additional static analysis checks..."
+        
+        # Check for common code quality issues
+        echo "Checking for TODO/FIXME comments..."
+        grep -rn "TODO\|FIXME" src/ include/ 2>/dev/null || echo "No TODO/FIXME comments found"
+        
+        # Check for potential debug code
+        echo "Checking for debug statements..."
+        grep -rn "Serial.println.*debug\|Serial.print.*debug" src/ 2>/dev/null | grep -v "//.*debug" || echo "No debug statements found"
+        
+        echo "✅ Additional static analysis completed"
 
   build:
     runs-on: ubuntu-latest

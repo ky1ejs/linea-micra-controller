@@ -6,8 +6,8 @@ This document explains how to maintain code quality and fix linting issues in th
 
 The project uses automated code linting and formatting to ensure consistent code style and catch potential issues early. The CI/CD pipeline includes several quality checks:
 
-1. **Code Formatting Check** - Ensures all code follows consistent formatting standards
-2. **Static Code Analysis** - Uses PlatformIO's built-in analysis tools to catch potential bugs
+1. **Code Formatting Check** - Ensures all code follows consistent formatting standards using clang-format
+2. **Static Code Analysis** - Uses cppcheck for offline static analysis to catch potential bugs and quality issues
 3. **Build Verification** - Ensures code compiles successfully
 
 ## Quick Fix Command
@@ -52,8 +52,10 @@ find src include -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --W
 # Fix code formatting
 find src include -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 
-# Run PlatformIO static analysis
-pio check --environment esp32-c6-devkitc-1 --fail-on-defect high --verbose
+# Run static analysis using cppcheck
+cppcheck --enable=warning,performance,portability --std=c++11 --platform=unix32 \
+  --suppress=missingIncludeSystem --suppress=unmatchedSuppression \
+  --error-exitcode=1 --verbose --include=src/config.h src/ include/
 
 # Build project
 pio run --environment esp32-c6-devkitc-1
@@ -116,11 +118,15 @@ brew install clang-format
 choco install llvm
 ```
 
-### PlatformIO Analysis Fails
-If PlatformIO analysis fails due to network issues:
-1. Check your internet connection
-2. Clear PlatformIO cache: `pio system prune`
-3. Update PlatformIO: `pip install --upgrade platformio`
+### Static Analysis Fails
+If static analysis fails:
+1. Review the cppcheck output for specific issues
+2. Common issues include:
+   - Uninitialized variables
+   - Potential null pointer dereferences
+   - Performance issues
+3. Fix issues manually or suppress specific warnings if they're false positives
+4. For offline analysis, ensure cppcheck is installed: `sudo apt install cppcheck`
 
 ## Best Practices
 
