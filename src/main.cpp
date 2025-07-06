@@ -172,6 +172,7 @@ void loop() {
     bool preBrewOn = lineaMicra->isPreBrewOn();
     float preBrewTime = lineaMicra->getPreBrewTime();
     float preBrewWait = lineaMicra->getPreBrewWait();
+    float lastShotDuration = lineaMicra->getLastShotDuration();
 
     // Display values with pending state indication
     display.print("Linea Micra is ");
@@ -203,6 +204,9 @@ void loop() {
       display.print("*");  // Asterisk indicates pending
     }
     display.println(String(preBrewWait) + " s");
+
+    display.print("Last Shot: ");
+    display.println(String(lastShotDuration) + " s");
 
     display.println("Mode: HA + Cloud");
   } else {
