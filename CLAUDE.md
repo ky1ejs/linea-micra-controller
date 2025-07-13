@@ -46,3 +46,4 @@ cppcheck --enable=warning,performance,portability --std=c++11 --platform=unix32 
 3. Use offline tools (cppcheck) instead of `pio check` in restricted environments
 4. Keep changes minimal and focused
 5. Reference the full development guidelines for detailed procedures
+6. Use 2 spaces for indentation
