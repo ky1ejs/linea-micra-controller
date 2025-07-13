@@ -8,5 +8,8 @@
     "ms-vscode.cpptools-extension-pack",
     "ms-vscode.vscode-clangd",
     "platformio.platformio-ide"
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.cpptools-extension-pack"
   ]
 }

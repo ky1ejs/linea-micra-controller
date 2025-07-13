@@ -33,8 +33,4 @@
     "unmatchedSuppression",
     "useStlAlgorithm"
   ],
-  "files.exclude": {
-    "**/.pio": true,
-    "**/cppcheck-*.txt": true
-  }
 }
