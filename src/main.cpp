@@ -130,6 +130,26 @@ void loop() {
     // Call LineaMicra's loop to handle debouncing
     lineaMicra->loop();
 
+    // Handle rotary encoder temperature control
+    static long lastEncoderValue = 0;
+    long currentEncoderValue = encoder1.getValue();
+    if (currentEncoderValue != lastEncoderValue) {
+      long encoderDelta = currentEncoderValue - lastEncoderValue;
+      float currentTemp = lineaMicra->getBoilerTemperature();
+      float newTemp = currentTemp + (encoderDelta * 0.1f);
+      
+      // Constrain temperature to reasonable espresso range (80-100°C)
+      newTemp = constrain(newTemp, 80.0f, 100.0f);
+      
+      if (newTemp != currentTemp) {
+        lineaMicra->setBoilerTemperature(newTemp);
+        Serial.printf("Encoder turned: %ld -> %ld (delta: %ld), Temperature: %.1f -> %.1f°C\n", lastEncoderValue,
+                      currentEncoderValue, encoderDelta, currentTemp, newTemp);
+      }
+      
+      lastEncoderValue = currentEncoderValue;
+    }
+
     bool micraIsOn = lineaMicra->isOn();
     float boilerTemp = lineaMicra->getBoilerTemperature();
     bool preBrewOn = lineaMicra->isPreBrewOn();
