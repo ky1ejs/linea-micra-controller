@@ -1,5 +1,3 @@
-#include <Adafruit_GFX.h>
-#include <Adafruit_SH110X.h>
 #include <Adafruit_seesaw.h>
 #include <Arduino.h>
 
@@ -9,31 +7,28 @@
 #include "RotaryEncoder.h"
 #include "WiFiManager.h"
 #include "config.h"
-#include "i2cScanner.h"
+#include "display/DisplayManager.h"
 
-Adafruit_seesaw ss;
-Adafruit_SH1107 display = Adafruit_SH1107(64, 128, &Wire);
 int32_t encoder_position;
 
 HomeAssistantClient haClient(HA_HOST, HA_PORT, HA_TOKEN);
 LaMarzoccoCloudClient cloudClient(LM_USERNAME, LM_PASSWORD, LM_SERIAL_NUMBER);
 WiFiManager wifiManager(WIFI_SSID, WIFI_PASSWORD, WIFI_TIMEOUT);
 LineaMicra* lineaMicra = nullptr;
+DisplayManager display(240, 240);
 
-RotaryEncoder<0> encoder1(0, 20);
+RotaryEncoder<0> encoder1(ENCODER_A_PIN, ENCODER_B_PIN);
 
-#define SEESAW_ADDR 0x36
-#define SS_SWITCH 24
 #define DISPLAY_ADDR 0x3C
 
-void drawWiFiStrength(Adafruit_SH1107& display, int x, int y, int strength) {
+void drawWiFiStrength(DisplayManager& display, int x, int y, int strength) {
   // Draw 4 bars of increasing height
   for (int i = 0; i < 4; i++) {
     int barHeight = (i + 1) * 2;
     if (strength > i) {
-      display.fillRect(x + i * 3, y - barHeight, 2, barHeight, SH110X_WHITE);
+      display.fillRect(x + i * 3, y - barHeight, 2, barHeight, DisplayColor::WHITE);
     } else {
-      display.drawRect(x + i * 3, y - barHeight, 2, barHeight, SH110X_WHITE);
+      display.drawRect(x + i * 3, y - barHeight, 2, barHeight, DisplayColor::WHITE);
     }
   }
 }
@@ -42,55 +37,29 @@ void setup() {
   Serial.begin(115200);
   while (!Serial)
     delay(10);
-  Serial.println("\nI2C Scanner");
+  Serial.println("\nBooting...");
 
-  initI2C();
-
-  encoder1.begin();
+  encoder1.begin([](int id, int pin_a, int pin_b) {
+    Serial.printf("Encoder %d initialized on pins A: %d, B: %d\n", id, pin_a, pin_b);
+  });
   Serial.println("Encoder 1 initialized");
 
-  if (!ss.begin(SEESAW_ADDR)) {
-    Serial.println("Couldn't find seesaw on default address");
-    while (1)
-      delay(10);
-  }
-  Serial.println("seesaw started");
-
-  uint32_t version = ((ss.getVersion() >> 16) & 0xFFFF);
-  if (version != 4991) {
-    Serial.print("Wrong firmware loaded? ");
-    Serial.println(version);
-    while (1)
-      delay(10);
-  }
-  Serial.println("Found Product 4991");
-
-  // use a pin for the built in encoder switch
-  ss.pinMode(SS_SWITCH, INPUT_PULLUP);
-
-  // get starting position
-  encoder_position = ss.getEncoderPosition();
-
-  Serial.println("Turning on interrupts");
-  delay(10);
-  ss.setGPIOInterrupts((uint32_t)1 << SS_SWITCH, 1);
-  ss.enableEncoderInterrupt();
-
   // Initialize the display
-  if (!display.begin(DISPLAY_ADDR)) {
-    Serial.println("SH110X allocation failed - continuing without display");
+  if (!display.init()) {
+    Serial.println("Display initialization failed - continuing without display");
   } else {
     Serial.println("Display initialized successfully");
   }
 
   // Initialize WiFi
   display.setRotation(1);
-  display.clearDisplay();
-  display.setTextSize(1.2);
-  display.setTextColor(SH110X_WHITE);
+  display.clear();
+  display.setTextSize(2);
+  display.setTextColor(DisplayColor::WHITE);
   display.setCursor(0, 0);
   display.setTextWrap(true);
   display.println("Connecting to WiFi...");
+  display.println(WIFI_SSID);
   display.display();
   if (!wifiManager.connect()) {
     Serial.println("Failed to connect to WiFi");
@@ -98,7 +67,7 @@ void setup() {
       delay(10);
   }
   Serial.printf("WiFi connected with IP: %s", WiFi.localIP().toString().c_str());
-  display.clearDisplay();
+  display.clear();
   display.println("Connected to WiFi");
   display.println(WiFi.localIP().toString());
 
@@ -124,7 +93,7 @@ void setup() {
   }
   Serial.println("Home Assistant client initialized");
 
-  display.clearDisplay();
+  display.clear();
   display.setCursor(0, 0);
   display.println("Starting Cloud client...");
   display.display();
@@ -137,8 +106,7 @@ void setup() {
   }
   Serial.println("LaMarzocco Cloud client initialized");
 
-  display.clearDisplay();
-  display.setCursor(0, 0);
+  display.clear();
   display.println("Connected to both");
   display.println("HA + Cloud API");
   display.display();
@@ -146,15 +114,10 @@ void setup() {
 }
 
 void loop() {
-  display.clearDisplay();
-  display.setCursor(0, 0);
+  display.clear();
 
   wifiManager.loop();  // Handle WiFi events
   haClient.loop();     // Handle Home Assistant events
-
-  if (!ss.digitalRead(SS_SWITCH)) {
-    Serial.println("Button pressed!");
-  }
 
   // Initialize LineaMicra if not already done (both clients must be ready)
   if (haClient.isConnected() && cloudClient.isAuthenticated()) {
@@ -173,8 +136,7 @@ void loop() {
     float preBrewTime = lineaMicra->getPreBrewTime();
     float preBrewWait = lineaMicra->getPreBrewWait();
 
-    // Display values with pending state indication
-    display.print("Linea Micra is ");
+    // Display values with pending state indication display.print("Linea Micra is ");
     if (lineaMicra->isPowerPending()) {
       display.print("*");  // Asterisk indicates pending
     }
@@ -230,7 +192,7 @@ void loop() {
 
   // Store current counts (disable interrupts briefly for atomic read)
   int32_t enc1 = encoder1.getValue();
-  int32_t new_position = ss.getEncoderPosition();
+  Serial.printf("Encoder 1 position: %ld\n", enc1);
 
   // Draw WiFi signal strength
   int wifiStrength = WiFi.RSSI() / -20;  // Convert RSSI to WiFi strength (0-4)

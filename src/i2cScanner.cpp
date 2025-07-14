@@ -1,3 +1,5 @@
+#if defined(BOARD_SDA) && defined(BOARD_SCL)
+
 #include "i2cScanner.h"
 
 #include <Arduino.h>
@@ -41,3 +43,5 @@ int scanI2CDevices() {
 
   return nDevices;
 }
+
+#endif

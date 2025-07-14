@@ -19,7 +19,9 @@
   "files.associations": {
     "*.h": "c",
     "*.cpp": "cpp",
-    "*.ino": "cpp"
+    "*.ino": "cpp",
+    "*.tpp": "cpp",
+    "ostream": "cpp"
   },
   "cppcheck.enable": true,
   "cppcheck.cppcheckPath": "cppcheck",
