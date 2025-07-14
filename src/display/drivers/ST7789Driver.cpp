@@ -1,3 +1,5 @@
+#ifdef DISPLAY_TYPE_ST7789
+
 #include "ST7789Driver.h"
 
 #include <Arduino.h>
@@ -72,3 +74,5 @@ void ST7789Driver::fillRect(int16_t x, int16_t y, int16_t w, int16_t h, DisplayC
 void ST7789Driver::setRotation(uint8_t rotation) {
   // Placeholder - would set display rotation
 }
+
+#endif  // DISPLAY_TYPE_SH1107
