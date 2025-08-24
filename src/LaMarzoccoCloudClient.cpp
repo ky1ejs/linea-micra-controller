@@ -154,6 +154,15 @@ MachineStatus LaMarzoccoCloudClient::getMachineStatus() {
       JsonObject times = widget["output"]["times"]["PreBrewing"][0]["seconds"];
       status.preBrewTime = times["In"].as<float>();
       status.preBrewWait = times["Out"].as<float>();
+    } else if (widgetType == "CMShotTimer" || widgetType == "CMStatistics" || widgetType == "CMShotStatistics") {
+      // Look for shot duration in various possible locations
+      if (widget["output"].containsKey("lastShotDuration")) {
+        status.lastShotDuration = widget["output"]["lastShotDuration"].as<float>();
+      } else if (widget["output"].containsKey("shotTimer")) {
+        status.lastShotDuration = widget["output"]["shotTimer"].as<float>();
+      } else if (widget["output"].containsKey("duration")) {
+        status.lastShotDuration = widget["output"]["duration"].as<float>();
+      }
     }
   }
 

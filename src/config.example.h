@@ -25,6 +25,7 @@
   "number.kyles_linea_micra_prebrew_off_time"  // Entity ID for pre-brew wait time
 #define LINEA_MICRA_PREBREW_MODE_ENTITY_ID \
   "select.kyles_linea_micra_prebrew_infusion_mode"  // Entity ID for pre-brew infusion mode
+#define LINEA_MICRA_SHOT_DURATION_ENTITY_ID "sensor.kyles_linea_micra_shot_timer"  // Entity ID for latest shot duration
 
 // Example entities you might want to control
 // #define EXAMPLE_SWITCH "switch.bedroom_light"

@@ -12,6 +12,7 @@ LineaMicra::LineaMicra(HomeAssistantClient* haClient, LaMarzoccoCloudClient* clo
       _preBrewIsOn(false),
       _preBrewTime(0.0f),
       _preBrewWait(0.0f),
+      _lastShotDuration(0.0f),
       _pendingPowerValue(false),
       _pendingBoilerTempValue(0.0f),
       _pendingPreBrewModeValue(false),
@@ -73,6 +74,11 @@ void LineaMicra::setupHomeAssistantSubscriptions() {
     // Clear pending state when we get confirmation from HA
     _preBrewModePending.clearPending();
   });
+
+  haClient->subscribeToEvent(LINEA_MICRA_SHOT_DURATION_ENTITY_ID, [this](const HAEntity& entity) {
+    _lastShotDuration = entity.state.toFloat();
+    Serial.println("Linea Micra last shot duration updated: " + String(_lastShotDuration) + " s");
+  });
 }
 
 LineaMicra::~LineaMicra() {
@@ -99,6 +105,10 @@ float LineaMicra::getPreBrewWait() {
 
 bool LineaMicra::isPreBrewOn() {
   return _preBrewIsOn;
+}
+
+float LineaMicra::getLastShotDuration() {
+  return _lastShotDuration;
 }
 
 // Pending state checkers for UI
@@ -209,9 +219,10 @@ bool LineaMicra::fetchInitialState() {
     _preBrewIsOn = (status.preBrewMode != PreExtractionMode::NONE);
     _preBrewTime = status.preBrewTime;
     _preBrewWait = status.preBrewWait;
+    _lastShotDuration = status.lastShotDuration;
 
     Serial.println("Initial state fetched from cloud - On: " + String(_isOn) + ", Temp: " + String(_boilerTemperature) +
-                   ", PreBrew: " + String(_preBrewIsOn));
+                   ", PreBrew: " + String(_preBrewIsOn) + ", Last Shot: " + String(_lastShotDuration) + "s");
     return true;
   } else {
     Serial.println("Failed to fetch initial state from cloud");

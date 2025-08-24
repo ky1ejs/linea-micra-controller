@@ -36,6 +36,7 @@ struct MachineStatus {
   PreExtractionMode preBrewMode;
   float preBrewTime;
   float preBrewWait;
+  float lastShotDuration;
   bool isValid;
 
   MachineStatus()
@@ -44,6 +45,7 @@ struct MachineStatus {
         preBrewMode(PreExtractionMode::NONE),
         preBrewTime(0.0f),
         preBrewWait(0.0f),
+        lastShotDuration(0.0f),
         isValid(false) {}
 };
 

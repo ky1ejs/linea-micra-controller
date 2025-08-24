@@ -37,6 +37,7 @@ public:
   float getPreBrewTime();
   float getPreBrewWait();
   bool isPreBrewOn();
+  float getLastShotDuration();
 
   // Pending state checkers - for UI to show different colors
   bool isPowerPending() const;
@@ -64,6 +65,7 @@ private:
   bool _preBrewIsOn;
   float _preBrewTime;
   float _preBrewWait;
+  float _lastShotDuration;
 
   // Pending state tracking for optimistic updates
   PendingState _powerPending;
